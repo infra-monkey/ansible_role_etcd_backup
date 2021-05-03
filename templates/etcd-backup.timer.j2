@@ -1,0 +1,9 @@
+[Unit]
+Description=Run daily backup of etcd
+
+[Timer]
+{{ etcd_backup_periodicity }}
+Persistent=true
+
+[Install]
+WantedBy=timers.target
