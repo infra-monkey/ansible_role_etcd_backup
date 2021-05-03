@@ -83,7 +83,11 @@ function perform_backup () {
     echo "rm -rf ${BACKUP_LOCALDIR}/*"
     rm -rf ${BACKUP_LOCALDIR}/*
     echo "starting etcd backup full"
-    ${ETCDCTL_PATH} --cacert="${ETCD_CACERT}" --cert="${ETCD_CERT}" --key="${ETCD_KEY}" " ${BACKUP_OPTIONS}" snapshot save ${BACKUP_LOCALDIR}/etcd.snapshot || return ${ERR_CODE}
+    if [ "${ETCD_SECURED}" == "True" ] ; then
+        ${ETCDCTL_PATH} --cacert="${ETCD_CACERT}" --cert="${ETCD_CERT}" --key="${ETCD_KEY}" " ${BACKUP_OPTIONS}" snapshot save ${BACKUP_LOCALDIR}/etcd.snapshot || return ${ERR_CODE}
+    else
+        ${ETCDCTL_PATH} --insecure-transport=true " ${BACKUP_OPTIONS}" snapshot save ${BACKUP_LOCALDIR}/etcd.snapshot || return ${ERR_CODE}
+    fi
     echo "end of etcd backup"
     return 0
 }
