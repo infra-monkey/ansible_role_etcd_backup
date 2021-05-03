@@ -57,16 +57,16 @@
   ansible.builtin.file:
     path: "/etc/etcd-backup"
     state: directory
-    owner: {{ etcd_backup_user }}
-    group: {{ etcd_backup_group }}
+    owner: "{{ etcd_backup_user }}"
+    group: "{{ etcd_backup_group }}"
     mode: '0755'
 
 - name: "Define backup settings"
   ansible.builtin.template:
     src: etcd-backup.conf.j2
     dest: "/etc/etcd-backup/etcd-backup.conf"
-    owner: {{ etcd_backup_user }}
-    group: {{ etcd_backup_group }}
+    owner: "{{ etcd_backup_user }}"
+    group: "{{ etcd_backup_group }}"
     mode: '0644'
 
 - name: "Create systemd service for the backup"
