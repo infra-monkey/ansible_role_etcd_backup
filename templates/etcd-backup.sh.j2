@@ -12,7 +12,7 @@ source ${1}
 BACKUP_DIR="{{ etcd_backup_dir }}"
 DATE=$(date +%F)
 BACKUP_BASEDIR="$(hostname -f)/etcd"
-BACKUP_LOCALDIR="/tmp/etcd-backup"
+BACKUP_LOCALDIR="/var/lib/etcd-backup"
 BACKUP_TARGETDIR="${BACKUP_DIR}/${BACKUP_BASEDIR}/${DATE}"
 }
 
@@ -35,6 +35,9 @@ function exit_script () {
             ;;
         3)
             EXIT_MSG="Error while copying backup files."
+            ;;
+        4)
+            EXIT_MSG="Error while compressing backup files."
             ;;
         *)
             EXIT_MSG="Unkonwn error."
@@ -62,16 +65,32 @@ function create_backup_dir () {
 }
 
 function copy_backup () {
-    ERR_CODE=3
-
-    if [ "${MOUNT_TYPE}" != "local" ] ; then
-        create_backup_dir
-        NB_ARCHIVES=$(ls -1 ${BACKUP_DIR}/${BACKUP_BASEDIR} | wc -l)
-        echo  "copy backup at ${BACKUP_TARGETDIR}"
-        cp -rf ${BACKUP_LOCALDIR}/* ${BACKUP_TARGETDIR} || return ${ERR_CODE}
-        rm -rf ${BACKUP_LOCALDIR}/*
+    
+    if [ "${BACKUP_COMPRESS}" == "False" ] ; then
+        ERR_CODE=3
+        if [ "${MOUNT_TYPE}" != "local" ] ; then
+            create_backup_dir
+            NB_ARCHIVES=$(ls -1 ${BACKUP_DIR}/${BACKUP_BASEDIR} | wc -l)
+            echo  "copy backup at ${BACKUP_TARGETDIR}"
+            cp -rf ${BACKUP_LOCALDIR}/* ${BACKUP_TARGETDIR} || return ${ERR_CODE}
+            rm -rf ${BACKUP_LOCALDIR}/*
+        else
+            NB_ARCHIVES=$(ls -1 ${BACKUP_LOCALDIR} | wc -l)
+        fi
     else
-        NB_ARCHIVES=$(ls -1 ${BACKUP_LOCALDIR} | wc -l)
+        ERR_CODE=4
+        if [ "${MOUNT_TYPE}" != "local" ] ; then
+            create_backup_dir
+            NB_ARCHIVES=$(ls -1 ${BACKUP_DIR}/${BACKUP_BASEDIR} | wc -l)
+            echo  "compress backup at ${BACKUP_TARGETDIR}"
+            #cp -rf ${BACKUP_LOCALDIR}/* ${BACKUP_TARGETDIR} || return ${ERR_CODE}
+            tar -czvf ${BACKUP_TARGETDIR}/etcd-${DATE}.snapshot.tgz ${BACKUP_LOCALDIR}/* || return ${ERR_CODE}
+            rm -rf ${BACKUP_LOCALDIR}/*
+        else
+            NB_ARCHIVES=$(ls -1 ${BACKUP_LOCALDIR} | wc -l)
+            tar -czvf ${BACKUP_LOCALDIR}/etcd-${DATE}.snapshot.tgz ${BACKUP_LOCALDIR}/etcd-${DATE}.snapshot || return ${ERR_CODE}
+            rm -rf ${BACKUP_LOCALDIR}/etcd-${DATE}.snapshot
+        fi
     fi
     [ ${NB_ARCHIVES} -gt ${NB_BACKUPS} ] && remove_oldest_backup
     return 0
@@ -84,9 +103,9 @@ function perform_backup () {
     rm -rf ${BACKUP_LOCALDIR}/*
     echo "starting etcd backup full"
     if [ "${ETCD_SECURED}" == "True" ] ; then
-        ${ETCDCTL_PATH} --cacert="${ETCD_CACERT}" --cert="${ETCD_CERT}" --key="${ETCD_KEY}" " ${BACKUP_OPTIONS}" snapshot save ${BACKUP_LOCALDIR}/etcd.snapshot || return ${ERR_CODE}
+        ${ETCDCTL_PATH} --cacert="${ETCD_CACERT}" --cert="${ETCD_CERT}" --key="${ETCD_KEY}" " ${BACKUP_OPTIONS}" snapshot save ${BACKUP_LOCALDIR}/etcd-${DATE}.snapshot || return ${ERR_CODE}
     else
-        ${ETCDCTL_PATH} --insecure-transport=true " ${BACKUP_OPTIONS}" snapshot save ${BACKUP_LOCALDIR}/etcd.snapshot || return ${ERR_CODE}
+        ${ETCDCTL_PATH} --insecure-transport=true " ${BACKUP_OPTIONS}" snapshot save ${BACKUP_LOCALDIR}/etcd-${DATE}.snapshot || return ${ERR_CODE}
     fi
     echo "end of etcd backup"
     return 0
