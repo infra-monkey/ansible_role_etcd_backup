@@ -1,0 +1,19 @@
+---
+etcdctl_path: "/usr/local/bin/etcdctl"
+etcd_backup_options: ""
+etcd_backup_compress: true
+etcd_backup_secure: true
+etcd_backup_cacert: ""
+etcd_backup_cert: ""
+etcd_backup_key: ""
+etcd_backup_user: "root"
+etcd_backup_group: "root"
+etcd_backup_mount_type: "local"
+etcd_backup_dir: "/tmp/etc-backup"
+etcd_backup_remote_mount_path: "nfsserver:/path/to/mount"
+etcd_backup_retention: "14"
+etcd_backup_periodicity: "OnCalendar=*-*-* 22:00:00"
+etcd_backup_webhook_notification: false
+etcd_backup_webhook_url: ""
+etcd_backup_webhook_script: "/usr/local/bin/webhook-notify.sh"
+...

@@ -1,0 +1,123 @@
+#!/bin/bash
+#
+# Backup script for etcd server.
+# 
+# Nighlty backup , full backup
+# Keeps $NB_BACKUPS in archive.
+# Stores the backups on nfs share, in a hostname/date subdir
+#
+
+function load_variables () {
+source ${1}
+BACKUP_DIR="{{ etcd_backup_dir }}"
+DATE=$(date +%F)
+BACKUP_BASEDIR="$(hostname -f)/etcd"
+BACKUP_LOCALDIR="/var/lib/etcd-backup"
+BACKUP_TARGETDIR="${BACKUP_DIR}/${BACKUP_BASEDIR}/${DATE}"
+}
+
+function show_variables () {
+echo "NB_BACKUPS=${NB_BACKUPS}"
+echo "BACKUP_DIR=${BACKUP_DIR}"
+echo "MOUNT_TYPE=${MOUNT_TYPE}"
+echo "BACKUP_OPTIONS=${BACKUP_OPTIONS}"
+echo "DATE=${DATE}"
+echo "BACKUP_BASEDIR=${BACKUP_BASEDIR}"
+echo "BACKUP_LOCALDIR=${BACKUP_LOCALDIR}"
+echo "BACKUP_TARGETDIR=${BACKUP_TARGETDIR}"
+}
+
+function exit_script () {
+    ERR_CODE=${1}
+    case ${ERR_CODE} in
+        2)
+            EXIT_MSG="Error during backup operation."
+            ;;
+        3)
+            EXIT_MSG="Error while copying backup files."
+            ;;
+        4)
+            EXIT_MSG="Error while compressing backup files."
+            ;;
+        *)
+            EXIT_MSG="Unkonwn error."
+            ;;
+    esac
+    echo ${EXIT_MSG}
+    [ "WEBHOOK_NOTIFY" == "True" ] && ${WEBHOOK_SCRIPT} ${WEBHOOK_URL} ":x: FAILED: ${0} on $(hostname -f) failed with error ${EXIT_CODE}\n${EXIT_MSG}"
+    exit ${ERR_CODE}
+}
+
+function remove_oldest_backup () {
+    if [ "${MOUNT_TYPE}" != "local" ] ; then
+        DIR_NAME=$(ls -t1 ${BACKUP_DIR}/${BACKUP_BASEDIR} | tail -1)
+        rm -rf ${BACKUP_DIR}/${BACKUP_BASEDIR}/${DIR_NAME}
+    else
+        DIR_NAME=$(ls -t1 ${BACKUP_LOCALDIR} | tail -1)
+        rm -rf ${BACKUP_LOCALDIR}/${DIR_NAME}
+    fi
+    return 0
+}
+
+function create_backup_dir () {
+    mkdir -p ${BACKUP_TARGETDIR}
+    return 0
+}
+
+function copy_backup () {
+    
+    if [ "${BACKUP_COMPRESS}" == "False" ] ; then
+        ERR_CODE=3
+        if [ "${MOUNT_TYPE}" != "local" ] ; then
+            create_backup_dir
+            NB_ARCHIVES=$(ls -1 ${BACKUP_DIR}/${BACKUP_BASEDIR} | wc -l)
+            echo  "copy backup at ${BACKUP_TARGETDIR}"
+            cp -rf ${BACKUP_LOCALDIR}/* ${BACKUP_TARGETDIR} || return ${ERR_CODE}
+            rm -rf ${BACKUP_LOCALDIR}/*
+        else
+            NB_ARCHIVES=$(ls -1 ${BACKUP_LOCALDIR} | wc -l)
+        fi
+    else
+        ERR_CODE=4
+        if [ "${MOUNT_TYPE}" != "local" ] ; then
+            create_backup_dir
+            NB_ARCHIVES=$(ls -1 ${BACKUP_DIR}/${BACKUP_BASEDIR} | wc -l)
+            echo  "compress backup at ${BACKUP_TARGETDIR}"
+            #cp -rf ${BACKUP_LOCALDIR}/* ${BACKUP_TARGETDIR} || return ${ERR_CODE}
+            tar -czvf ${BACKUP_TARGETDIR}/etcd-${DATE}.snapshot.tgz ${BACKUP_LOCALDIR}/* || return ${ERR_CODE}
+            rm -rf ${BACKUP_LOCALDIR}/*
+        else
+            NB_ARCHIVES=$(ls -1 ${BACKUP_LOCALDIR} | wc -l)
+            tar -czvf ${BACKUP_LOCALDIR}/etcd-${DATE}.snapshot.tgz ${BACKUP_LOCALDIR}/etcd-${DATE}.snapshot || return ${ERR_CODE}
+            rm -rf ${BACKUP_LOCALDIR}/etcd-${DATE}.snapshot
+        fi
+    fi
+    [ ${NB_ARCHIVES} -gt ${NB_BACKUPS} ] && remove_oldest_backup
+    return 0
+    
+}
+
+function perform_backup () {
+    ERR_CODE=3
+    echo "rm -rf ${BACKUP_LOCALDIR}/*"
+    rm -rf ${BACKUP_LOCALDIR}/*
+    echo "starting etcd backup full"
+    if [ "${ETCD_SECURED}" == "True" ] ; then
+        ${ETCDCTL_PATH} --cacert="${ETCD_CACERT}" --cert="${ETCD_CERT}" --key="${ETCD_KEY}" " ${BACKUP_OPTIONS}" snapshot save ${BACKUP_LOCALDIR}/etcd-${DATE}.snapshot || return ${ERR_CODE}
+    else
+        ${ETCDCTL_PATH} --insecure-transport=true " ${BACKUP_OPTIONS}" snapshot save ${BACKUP_LOCALDIR}/etcd-${DATE}.snapshot || return ${ERR_CODE}
+    fi
+    echo "end of etcd backup"
+    return 0
+}
+
+#
+# MAIN PART
+#
+
+load_variables
+show_variables
+perform_backup || exit_script $?
+copy_backup ||  exit_script $?
+[ "${WEBHOOK_NOTIFY}" == "True" ] && ${WEBHOOK_SCRIPT} ${WEBHOOK_URL} ":white_check_mark: SUCCESS: ${0} on $(hostname -f) performed successfully"
+exit 0

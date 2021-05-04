@@ -1,0 +1,8 @@
+[Unit]
+Description=Backup etcd
+
+[Service]
+Type=oneshot
+User={{ etcd_backup_user }}
+Group={{ etcd_backup_group }}
+ExecStart=/usr/local/bin/etcd-backup.sh /etc/etcd-backup/etcd-backup.conf

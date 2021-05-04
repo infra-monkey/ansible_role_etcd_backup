@@ -1,2 +1,94 @@
 ---
+- name: "Include os specific variables"
+  ansible.builtin.include_vars: "{{ ansible_os_family }}.yml"
+
+- name: Include webhook notification role
+  ansible.builtin.include_role:
+    name: infra_monkey.webhook_notify
+  when: etcd_backup_webhook_notification
+
+- name: "Ensure nfs dependencies are installed"
+  ansible.builtin.package:
+    name: "{{ deplist }}"
+    state: present
+  when: deplist is defined
+
+- name: "Ensure the target directory exists (can be used as mount point)"
+  ansible.builtin.file:
+    path: "{{ etcd_backup_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: "Ensure nfs dependencies are installed"
+  ansible.builtin.package:
+    name: "{{ nfs_deps }}"
+    state: present
+  when: etcd_backup_mount_type == "nfs"
+
+- name: "Ensure the backup mount is defined"
+  ansible.posix.mount:
+    src: "{{ etcd_backup_remote_mount_path }}"
+    path: "{{ etcd_backup_dir }}"
+    opts: rw,noatime
+    state: mounted
+    fstype: "{{ etcd_backup_mount_type }}"
+    boot: true
+  when: etcd_backup_mount_type == "nfs"
+
+- name: "Ensure the target directory for host exists and is writable"
+  ansible.builtin.file:
+    path: "{{ etcd_backup_dir }}/{{ ansible_fqdn }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: "Copy the backup script"
+  ansible.builtin.template:
+    src: etcd-backup.sh.j2
+    dest: /usr/local/bin/etcd-backup.sh
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: "Ensure the configuration directory exists"
+  ansible.builtin.file:
+    path: "/etc/etcd-backup"
+    state: directory
+    owner: "{{ etcd_backup_user }}"
+    group: "{{ etcd_backup_group }}"
+    mode: '0755'
+
+- name: "Define backup settings"
+  ansible.builtin.template:
+    src: etcd-backup.conf.j2
+    dest: "/etc/etcd-backup/etcd-backup.conf"
+    owner: "{{ etcd_backup_user }}"
+    group: "{{ etcd_backup_group }}"
+    mode: '0644'
+
+- name: "Create systemd service for the backup"
+  ansible.builtin.template:
+    src: etcd-backup.service.j2
+    dest: "/etc/systemd/system/etcd-backup.service"
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: "Create systemd timer for the backup"
+  ansible.builtin.template:
+    src: etcd-backup.timer.j2
+    dest: "/etc/systemd/system/etcd-backup.timer"
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: "Ensure systemd timers are enabled"
+  ansible.builtin.systemd:
+    name: etcd-backup.timer
+    state: started
+    enabled: true
+    daemon_reload: true
 ...
