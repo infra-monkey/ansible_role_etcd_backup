@@ -1,13 +1,13 @@
 ---
-etcd_backup_secure: true
+etcdctl_path: "/usr/local/bin/etcdctl"
+etcd_backup_options: ""
 etcd_backup_compress: true
+etcd_backup_secure: true
 etcd_backup_cacert: ""
 etcd_backup_cert: ""
 etcd_backup_key: ""
 etcd_backup_user: "root"
 etcd_backup_group: "root"
-etcd_backup_options: ""
-etcdctl_path: "/usr/local/bin/etcdctl"
 etcd_backup_mount_type: "local"
 etcd_backup_dir: "/tmp/etc-backup"
 etcd_backup_remote_mount_path: "nfsserver:/path/to/mount"
