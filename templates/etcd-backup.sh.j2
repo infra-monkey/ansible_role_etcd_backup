@@ -17,7 +17,14 @@ BACKUP_TARGETDIR="${BACKUP_DIR}/${BACKUP_BASEDIR}/${DATE}"
 }
 
 function show_variables () {
-echo "NB_BACKUPS=${NB_BACKUPS}"
+echo "BACKUP_COMPRESS=${BACKUP_COMPRESS}"
+echo "ETCD_SECURED=${ETCD_SECURED}"
+echo "ETCDCTL_PATH=${ETCDCTL_PATH}"
+echo "ETCD_CACERT=${ETCD_CACERT}"
+echo "ETCD_CERT=${ETCD_CERT}"
+echo "ETCD_KEY=${ETCD_KEY}"
+echo "WEBHOOK_NOTIFY=${WEBHOOK_NOTIFY}"
+echo "WEBHOOK_URL=${WEBHOOK_URL}"
 echo "BACKUP_DIR=${BACKUP_DIR}"
 echo "MOUNT_TYPE=${MOUNT_TYPE}"
 echo "BACKUP_OPTIONS=${BACKUP_OPTIONS}"
@@ -99,13 +106,14 @@ function copy_backup () {
 
 function perform_backup () {
     ERR_CODE=3
+    mkdir -p ${BACKUP_LOCALDIR}
     echo "rm -rf ${BACKUP_LOCALDIR}/*"
     rm -rf ${BACKUP_LOCALDIR}/*
     echo "starting etcd backup full"
     if [ "${ETCD_SECURED}" == "True" ] ; then
-        ${ETCDCTL_PATH} --cacert="${ETCD_CACERT}" --cert="${ETCD_CERT}" --key="${ETCD_KEY}" " ${BACKUP_OPTIONS}" snapshot save ${BACKUP_LOCALDIR}/etcd-${DATE}.snapshot || return ${ERR_CODE}
+        ${ETCDCTL_PATH} --cacert=${ETCD_CACERT} --cert=${ETCD_CERT} --key=${ETCD_KEY} ${BACKUP_OPTIONS} snapshot save ${BACKUP_LOCALDIR}/etcd-${DATE}.snapshot || return ${ERR_CODE}
     else
-        ${ETCDCTL_PATH} --insecure-transport=true " ${BACKUP_OPTIONS}" snapshot save ${BACKUP_LOCALDIR}/etcd-${DATE}.snapshot || return ${ERR_CODE}
+        ${ETCDCTL_PATH} --insecure-transport=true ${BACKUP_OPTIONS} snapshot save ${BACKUP_LOCALDIR}/etcd-${DATE}.snapshot || return ${ERR_CODE}
     fi
     echo "end of etcd backup"
     return 0
@@ -115,7 +123,7 @@ function perform_backup () {
 # MAIN PART
 #
 
-load_variables
+load_variables ${1}
 show_variables
 perform_backup || exit_script $?
 copy_backup ||  exit_script $?
