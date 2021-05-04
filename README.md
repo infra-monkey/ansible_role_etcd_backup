@@ -4,7 +4,7 @@ This role requires root permissions. It must be called as root. This needs to be
 
 >Backups are stored in {{ backup_dir }}/{{ ansible_fqdn }}/etcd/date
 
->Use `etcdctl` to restore those backups. Make sure to set the appropriate options.
+>Use `etcdctl snapshot restore` to restore those backups. Make sure to set the appropriate options.
 
 >Webhook notifications only support rocketchat for the moment.
 
