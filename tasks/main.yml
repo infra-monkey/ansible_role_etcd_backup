@@ -7,6 +7,12 @@
     name: infra_monkey.webhook_notify
   when: etcd_backup_webhook_notification
 
+- name: "Update apt cache"
+  ansible.builtin.apt:
+    update_cache: yes
+  when: ansible_os_family == "Debian"
+  changed_when: false
+
 - name: "Ensure nfs dependencies are installed"
   ansible.builtin.package:
     name: "{{ deplist }}"
