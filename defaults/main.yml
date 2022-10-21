@@ -17,4 +17,3 @@ etcd_backup_webhook_notification: false
 etcd_backup_webhook_url: ""
 etcd_backup_webhook_script: "/usr/local/bin/webhook-notify.sh"
 etcd_backup_notify_failure_only: true
-...
