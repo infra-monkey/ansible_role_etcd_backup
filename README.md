@@ -57,6 +57,6 @@ The role configures **systemd timers**, if your host doesn't use systemd, it wil
 # Automatique Testing
 
 This role is tested using Molecule against:
-- Python 3.7, 3.8 and 3.9
+- Python 3.9, 3.10 and 3.11
 - CentOS 7/8/9
-- Debian 9/10/11
+- Debian 9/10/11/12
