@@ -1,7 +1,8 @@
 ---
 - name: Converge
   hosts: all
-  connection: local
-  become: true
+  become: yes
+  gather_facts: yes
+
   roles:
-    - role: "infra_monkey.etcd_backup"
+    - role: ansible_role_etcd_backup
